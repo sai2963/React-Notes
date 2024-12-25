@@ -1,0 +1,209 @@
+The Context API
+
+The Context API is a neat way to pass state across the app without having to use props. It was introduced to allow you to pass state (and enable the state to update) across the app, without having to use props for it.
+
+The React team suggests to stick to props if you have just a few levels of children to pass, because it’s still a much less complicated API than the Context API.
+
+In many cases, it enables us to avoid using Redux, simplifying our apps a lot, and also learning how to use React.
+
+How does it work?
+
+You create a context using React.createContext(), which returns a Context object:
+
+const { Provider, Consumer } = React.createContext()
+Then you create a wrapper component that returns a Provider component, and you add as children all the components from which you want to access the context:
+
+class Container extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = {
+      something: 'hey'
+    }
+  }
+
+  render() {
+    return (
+      <Provider value={{ state: this.state }}>{this.props.children}</Provider>
+    )
+  }
+}
+
+class HelloWorld extends React.Component {
+  render() {
+    return (
+      <Container>
+        <Button />
+      </Container>
+    )
+  }
+}
+I used Container as the name of this component because this will be a global provider. You can also create smaller contexts.
+
+Inside a component that’s wrapped in a Provider, you use a Consumer component to make use of the context:
+
+class Button extends React.Component {
+  render() {
+    return (
+      <Consumer>
+        {context => <button>{context.state.something}</button>}
+      </Consumer>
+    )
+  }
+}
+You can also pass functions into a Provider value, and those functions will be used by the Consumer to update the context state:
+
+<Provider value={{
+  state: this.state,
+  updateSomething: () => this.setState({something: 'ho!'})
+  {this.props.children}
+</Provider>
+
+/* ... */
+<Consumer>
+  {(context) => (
+    <button onClick={context.updateSomething}>{context.state.something}</button>
+  )}
+</Consumer>
+You can see this in action in this Glitch.
+
+You can create multiple contexts, to make your state distributed across components, yet expose it and make it reachable by any component you want.
+
+When using multiple files, you create the content in one file, and import it in all the places you use it:
+
+//context.js
+import React from 'react'
+export default React.createContext()
+
+//component1.js
+import Context from './context'
+//... use Context.Provider
+
+//component2.js
+import Context from './context'
+//... use Context.Consumer
+
+Higher order components
+You might be familiar with Higher Order Functions in JavaScript. Those are functions that accept functions as arguments, and/or return functions.
+
+Two examples of those functions are Array.map() or Array.filter().
+
+In React, we extend this concept to components, and so we have a Higher Order Component (HOC)when the component accepts a component as input and returns a component as its output.
+
+In general, higher order components allow you to create code that’s composable and reusable, and also more encapsulated.
+
+We can use a HOC to add methods or properties to the state of a component, or a Redux store for example.
+
+You might want to use Higher Order Components when you want to enhance an existing component, operate on the state or props, or its rendered markup.
+
+There is a convention of prepending a Higher Order Component with the with string (it's a convention, so it's not mandatory), so if you have a Button component, its HOC counterpart should be called withButton.
+
+Let’s create one.
+
+The simplest example ever of a HOC is one that simply returns the component unaltered:
+
+const withElement = Element => () => &lt;Element />
+Let’s make this a little bit more useful and add a property to that button, in addition to all the props it already came with, the color:
+
+const withColor = Element => props => <Element {...props} color="red" />
+We use this HOC in a component JSX:
+
+const Button = () => {
+  return <button>test</button>
+}
+
+const ColoredButton = withColor(Button)
+and we can finally render the ColoredButton component in our app JSX:
+
+function App() {
+  return (
+    <div className="App">
+      <h1>Hello</h1>
+      <ColoredButton />
+    </div>
+  )
+}
+This is a very simple example but hopefully you can get the gist of HOCs before applying those concepts to more complex scenarios.
+
+Render Props
+A common pattern used to share state between components is to use the children prop.
+
+Inside a component JSX you can render {this.props.children} which automatically injects any JSX passed in the parent component as a children:
+
+class Parent extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = {
+      /*...*/
+    }
+  }
+
+  render() {
+    return <div>{this.props.children}</div>
+  }
+}
+
+const Children1 = () => {}
+
+const Children2 = () => {}
+
+const App = () => (
+  <Parent>
+    <Children1 />
+    <Children2 />
+  </Parent>
+)
+However, there is a problem here: the state of the parent component cannot be accessed from the children.
+
+To be able to share the state, you need to use a render prop component, and instead of passing components as children of the parent component, you pass a function which you then execute in {this.props.children()}. The function can accept arguments:
+
+class Parent extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { name: 'Flavio' }
+  }
+
+  render() {
+    return <div>{this.props.children(this.state.name)}</div>
+  }
+}
+
+const Children1 = props => {
+  return <p>{props.name}</p>
+}
+
+const App = () => <Parent>{name => <Children1 name={name} />}</Parent>
+Instead of using the children prop, which has a very specific meaning, you can use any prop, and so you can use this pattern multiple times on the same component:
+
+class Parent extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { name: 'Flavio', age: 35 }
+  }
+
+  render() {
+    return (
+      <div>
+        <p>Test</p>
+        {this.props.someprop1(this.state.name)}
+        {this.props.someprop2(this.state.age)}
+      </div>
+    )
+  }
+}
+
+const Children1 = props => {
+  return <p>{props.name}</p>
+}
+
+const Children2 = props => {
+  return <p>{props.age}</p>
+}
+
+const App = () => (
+  <Parent
+    someprop1={name => <Children1 name={name} />}
+    someprop2={age => <Children2 age={age} />}
+  />
+)
+
+ReactDOM.render(<App />, document.getElementById('app'))
